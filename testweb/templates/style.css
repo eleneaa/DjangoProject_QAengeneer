@@ -1,0 +1,30 @@
+body{
+    background-color: #F1FAEE;
+}
+
+h1{
+    color: #E63946;
+    font-family: 'Playfair Display', serif;
+    font-size: 70px;
+    font-weight: 700;
+    margin-bottom: 0;
+}
+
+h2{
+    color: #1D3557;
+    font-size: 30px;
+}
+
+p{
+    color: #457B9D;
+    width: 700px;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.titles{
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-around;
+}
