@@ -1,0 +1,40 @@
+{% load static %}
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <link href="style.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,800;0,900;1,400;1,700;1,800;1,900&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <ul class="navigation">
+        <li class='nav'>
+           <a href="{% url 'info' %}">
+            Главная страница
+           </a>
+        </li>
+        <li class='nav'>
+            <a href="{% url 'relevance' %}">
+             Востребованность
+            </a>
+         </li>
+         <li class='nav'>
+            <a href="{% url 'geography' %}">
+             География
+            </a>
+         </li>
+         <li class='nav'>
+            <a href="{% url 'skills' %}">
+             Навыки
+            </a>
+         </li>
+         <li class='nav'>
+            <a href="{% url 'recent_vacancies' %}">
+             Последние вакансии
+            </a>
+         </li>
+    </ul>
+  {% block content%}{% endblock %}
+  </body>
+</html>
