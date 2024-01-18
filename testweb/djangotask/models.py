@@ -22,3 +22,12 @@ class Vacancy(models.Model):
 
     class Meta:
         db_table = "vacancies"
+
+
+class Plot(models.Model):
+    title = models.TextField()
+    img = models.ImageField()
+    tag = models.TextField()
+
+    class Meta:
+        db_table = "plot"

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path
-from . import views
+from . import views, settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -9,4 +10,4 @@ urlpatterns = [
     path('skills/', views.skills, name='skills'),
     path('geography/', views.geography, name='geography'),
     path('relevance/', views.relevance, name='relevance')
-]
+]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

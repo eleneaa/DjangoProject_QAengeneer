@@ -1,0 +1,9 @@
+{% extends 'base_template.html' %}
+{% load static %}
+
+{% block content %}
+    {% for plot in plots %}
+        <img src="{{plot.img.url}}"/>
+        <li>{{ plot.title }}</li>
+    {% endfor %}
+{% endblock %}

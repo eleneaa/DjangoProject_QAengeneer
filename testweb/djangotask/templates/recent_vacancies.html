@@ -1,0 +1,26 @@
+{% extends 'base_template.html' %}
+{% load static %}
+{% block content %}
+<table>
+  <tr>
+    <th>Назание вакансии</th>
+    <th>Описание вакансии</th>
+    <th>Навыки</th>
+      <th> Компания </th>
+      <th> Оклад </th>
+      <th> Название региона </th>
+      <th> Дата публикации вакансии </th>
+  </tr>
+{% for vacancy in data %}
+  <tr>
+    <td>{{ vacancy.vacancy_name }}</td>
+    <td>{{ vacancy.description }}</td>
+    <td>{{ vacancy.key_skills }}</td>
+      <td>{{ vacancy.employer_name }}</td>
+      <td>{{ vacancy.salary_from }} - {{ vacancy.salary_to }}</td>
+      <td>{{ vacancy.area_name }}</td>
+      <td>{{ vacancy.publish_date }}</td>
+  </tr>
+{% endfor %}
+</table>
+{% endblock %}
