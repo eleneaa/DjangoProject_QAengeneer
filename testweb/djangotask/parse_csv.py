@@ -1,35 +1,164 @@
-from collections import Counter, OrderedDict
-from math import floor
-from operator import itemgetter
-
 import pandas as pd
+import matplotlib.pyplot as plt
 import requests
 
-vacancies = pd.read_csv('vacancies.csv', encoding='utf-8', on_bad_lines='warn')
 
+def clean_salaries(df):
+    # Создаем копию, чтобы избежать SettingWithCopyWarning
+    df = df.copy()
 
-def df_filter_by_key(df_sorted: pd.DataFrame, key: str, column: str):
-    list_cols = df_sorted.columns.tolist()
-    list_rows = df_sorted.values
-    key_index = list_cols.index(column)
-    skills_index = list_cols.index('key_skills')
-    value_list = []
-    for row in list_rows:
-        if key.lower() in str(row[key_index]).lower():
-            value_list.append(row)
-    return pd.DataFrame(data=value_list, columns=list_cols)
+    # Заполняем пропущенные значения
+    df['salary_from'] = df['salary_from'].fillna(df['salary_to'])
+    df['salary_to'] = df['salary_to'].fillna(df['salary_from'])
 
+    # Удаляем строки, где оба значения NaN
+    df = df.dropna(subset=['salary_from', 'salary_to'], how='all')
 
-def normalize_skills(df: pd.DataFrame):
-    df['key_skills'] = df['key_skills'].str.replace('\n', ' ')
     return df
 
 
-def currency_to_RUR(df: pd.DataFrame):
-    response = requests.get('https://www.cbr-xml-daily.ru/daily_json.js')
-    currency = response.json()
-    mask = df['salary_currency'] == 'RUR'
-    df.loc[mask, 'salary_from'] = df.loc[mask, 'salary_from'] * float(currency["Valute"][df.loc[i, 'salary_currency']]['Value'])
+def get_currency_rates():
+    try:
+        response = requests.get('https://www.cbr-xml-daily.ru/daily_json.js')
+        data = response.json()
+        rates = {
+            'RUR': 1,
+            'USD': data['Valute']['USD']['Value'],
+            'EUR': data['Valute']['EUR']['Value'],
+            'KZT': data['Valute']['KZT']['Value'] / 100  # Тенге за 100 единиц
+        }
 
-df_filter_by_key(normalize_skills(vacancies), 'Тестировщик', 'name').to_csv(r'QAengineer.csv', index= False)
-df_filter_by_key(normalize_skills(vacancies), 'QA', 'name').to_csv(r'QAengineer.csv', index= False)
+        return rates
+    except Exception as e:
+        print(f"Ошибка при получении курсов валют: {e}")
+        # Возвращаем курсы по умолчанию, если API недоступно
+        return {
+            'RUR': 1,
+            'USD': 90,
+            'EUR': 100,
+            'KZT': 0.18
+        }
+
+
+def calculate_salary(row, currency_rates):
+    """Расчет зарплаты с учетом валюты"""
+    if pd.isna(row['salary_from']) and pd.isna(row['salary_to']):
+        return None
+    salary = (row['salary_from'] + row['salary_to']) / 2
+    return salary * currency_rates.get(row['salary_currency'], 1)
+
+
+def plot_top_cities_by_year(df, top_n=10):
+    """Топ городов по количеству вакансий для каждого года"""
+    years = sorted(df['published_at'].unique())
+
+    for year in years:
+        year_data = df[df['published_at'] == year]
+        if len(year_data) == 0:
+            continue
+
+        cities = year_data['area_name'].value_counts().head(top_n)
+
+        if len(cities) == 0:
+            continue
+
+        plt.figure(figsize=(12, 6))
+        cities.plot(kind='bar', color='lightblue')
+        plt.title(f'Топ-{top_n} городов по вакансиям в {year} году', pad=20)
+        plt.xlabel('Город')
+        plt.ylabel('Количество вакансий')
+        plt.xticks(rotation=45, ha='right')
+        plt.grid(axis='y', linestyle='--', alpha=0.7)
+        plt.tight_layout()
+        plt.show()
+
+
+def plot_salaries(df):
+    """График зарплат по годам"""
+    plt.figure(figsize=(12, 6))
+
+    # Средняя зарплата по годам
+    salary_by_year = df.groupby('published_at')['salary'].mean()
+    salary_by_year.plot(kind='line', marker='o', label='Средняя зарплата')
+
+    # Медианная зарплата по годам
+    median_by_year = df.groupby('published_at')['salary'].median()
+    median_by_year.plot(kind='line', marker='o', label='Медианная зарплата')
+
+    plt.title('Динамика зарплат по годам', pad=20)
+    plt.xlabel('Год')
+    plt.ylabel('Зарплата (руб)')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_skills(df, top_n=15):
+    """График ключевых навыков"""
+    # Разбиваем навыки и считаем частоту
+    skills = (
+        df['key_skills']
+        .str.lower()
+        .str.split(r',\s*|\s*и\s*|\s*/\s*', regex=True)  # Разделители: запятые, "и", слэши
+        .explode()
+        .str.strip()
+        .value_counts()
+        .head(top_n)
+    )
+
+    plt.figure(figsize=(12, 8))
+    skills.plot(kind='barh')
+    plt.title(f'Топ-{top_n} ключевых навыков', pad=20)
+    plt.xlabel('Количество упоминаний')
+    plt.gca().invert_yaxis()  # Чтобы навыки шли сверху вниз
+    plt.tight_layout()
+    plt.show()
+
+
+def analyze_vacancies(filename, keywords):
+    """Основная функция анализа"""
+    try:
+        df = pd.read_csv(filename)
+    except Exception as e:
+        print(f"Ошибка чтения файла: {e}")
+        return
+
+    # Очистка и обработка данных
+    df = clean_salaries(df)
+    df = df.dropna(subset=['name'])  # Обязательные поля
+
+    # Фильтрация по профессии
+    pattern = '|'.join(keywords)
+    filtered = df[df['name'].str.contains(pattern, case=False, regex=True, na=False)]
+
+    if len(filtered) == 0:
+        print("Нет вакансий, соответствующих критериям")
+        return
+
+    currency_rates = get_currency_rates()
+
+    filtered['salary'] = filtered.apply(
+        lambda row: calculate_salary(row, currency_rates),
+        axis=1
+    ).dropna()
+
+    filtered['published_at'] = filtered.apply(
+        lambda row: int(row['published_at'][0:4]),
+        axis=1
+    ).dropna()
+
+    # Анализ
+    print(f"Найдено {len(filtered)} вакансий за период {filtered['published_at'].min()}-{filtered['published_at'].max()}")
+    print(f"Средняя зарплата: {filtered['salary'].mean():.2f} руб")
+    print(f"Медианная зарплата: {filtered['salary'].median():.2f} руб")
+
+    # Визуализация
+    plot_top_cities_by_year(filtered)
+    plot_salaries(filtered)
+    plot_skills(filtered)
+
+
+if __name__ == "__main__":
+    keywords = ["Продавец", "учитель"]
+    analyze_vacancies('vacancies_2024.csv', keywords)
